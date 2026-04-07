@@ -1,6 +1,7 @@
 mod array_slice_vec_string;
 mod clousures;
 mod comparisons;
+mod concurrent_patterns;
 mod error_result;
 mod estructuras_ids;
 mod futures_async;

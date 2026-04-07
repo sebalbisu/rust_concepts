@@ -85,6 +85,7 @@ mod traits {
         assert_eq!(Age(30).eq(&Age(25)), false);
         assert_eq!(Age(30), Age(30));
         assert_ne!(Age(30), Age(25));
+        
     }
 
     // Automatic implementation with derive of PartialEq:
