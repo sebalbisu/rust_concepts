@@ -19,6 +19,7 @@ Reference repository for fundamental and advanced concepts of Rust. Each module 
 - [`iterators.rs`](src/concepts/iterators.rs) - Iterators, adapters, lazy evaluation
 - [`syntax_sugar.rs`](src/concepts/syntax_sugar.rs) - Rust syntactic sugar
 - [`comparisons.rs`](src/concepts/comparisons.rs) - Eq, PartialEq, Ord, PartialOrd
+- [`concurrent_patterns.rs`](src/concepts/concurrent_patterns.rs) - Concurrency patterns: atomics, mutexes, channels, work stealing, etc.
 - [`error_result.rs`](src/concepts/error_result.rs) - Error handling, Result, Option, ? operator
 - [`modules_demo.rs`](src/concepts/modules_demo.rs) - Module organization strategies
 - [`testing_demo.rs`](src/concepts/testing_demo.rs) - Unit tests, property-based testing (proptest)
