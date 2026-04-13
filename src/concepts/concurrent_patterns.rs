@@ -328,25 +328,29 @@ pub mod thread_local {
 
 /*
 task_local!:
-    Shares local static-like variables across tasks on the same thread.
-    No `Sync`/`Send` required; a scheduler must be running.
+    Shares local static-like variables across tasks.
+    each task can be multithreaded.
 
-    Use it to store values reachable from all tasks inside that scope
-    without passing the value into every task.
-    Further task calls from within a scope run on the same thread, so
-    there are no cross-thread races; `Cell` and `RefCell` suffice.
-    The static value is initialized once when the scope is created
-    and persists across task calls inside that scope.
+    Arc vs task_local:
+    - Arc:
+     * large data
+     * inmutable data
+     * centralized data
+    - task_local:
+     * local data: unique data for each scoped task (like: user_id, request_id, etc.)
+     * simplify the code: no need to pass the value into every task.
+
     Unlike a plain `static`, the value is not shared across all
     threads/tasks—only tasks using the scope created with `.scope()`.
-    For mutability use `Cell`, `RefCell`.
+    Isolation of modifications: If a task modifies the value of its TaskLocal (for example, by using set() or accessing the Cell and changing its contents), that modification is strictly local to that task.
+    No data races: Since each task has its own isolated instance of the TaskLocal value.
  */
 #[tokio::test]
 pub async fn task_local() {
     use std::cell::Cell;
 
     tokio::task_local! {
-        static COUNTER: Cell<i32>;
+        static COUNTER: Cell<i32>;  // each task has its own cell
     }
     async fn increment_counter() {
         COUNTER.with(|c| {
