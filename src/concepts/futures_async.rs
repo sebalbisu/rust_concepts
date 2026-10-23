@@ -20,10 +20,108 @@ fn index() {
 FUTURE TRAIT:
 ========================================================================
 
-    Definition:
+    Concept:
     --------------------------------------------------
-        A Future is a value that resolves at some point in the future.
+        A Future is a value that will become ready at some point in the future.
+        It works asynchronously, it can be suspended and resumed/polled later until it is ready.
+        A runtime is required to call poll() each time an .await is called, wraps the future in a Pin once and calls poll() until it is Ready.
 
+        Inside the poll method, there is a context that contains the waker, that is used to notify the runtime when the future can be polled again.
+        The future has an state = (await_step, captured variables) which are changed by the poll method.
+
+        el future es pinned para evitar que se mueva de lugar su stack??
+        al parecer la utilidad de pin es para cuando se lo hace manual, y poder alterar entre polls / antes de arrancar, la memoria del future, ya sea asignacion.
+
+
+        sí podés pinneear y luego .await en otro thread, pero tiene que ser Box::pin (heap), no pin! (stack). El pin garantiza que el future no cambie de dirección en memoria; Send garantiza que podés transferir ese Pin<Box<F>> a otro thread
+
+        let fut = async {
+            let data = String::from("hola");
+            let r = &data;
+            async {}.await;
+            println!("{r}");
+        };
+        let pinned = Box::pin(fut);  // heap @ 0xABC — dirección fija
+        tokio::spawn(async move {
+            pinned.await;  // ✅ pollea en worker thread
+        });
+
+        En general no hace falta, porque el tipo es Send. si se quiere compartir datos con el padre se puede usar Arc<T> o Mutex<T>.
+
+    Info
+    --------------------------------------------------
+
+     el runtime es quien llama a poll; el usuario sólo usa .await. (ej Tokio)
+     cuando se llama a .await, el runtime envuelve una vez el future en un Pin y luego va llamando apoll(), hasta que sea Ready.
+
+     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<i32> {
+        if listo() {
+            Poll::Ready(valor)
+        } else {
+            cx.waker().wake_by_ref(); // Notifica al runtime
+            Poll::Pending
+        }
+    }
+    se puede pasar el waker a otros futures para que se notifiquen cuando esté listo.
+
+
+
+    Examples:
+    --------------------------------------------------
+
+        Async fn
+        --------------------------------------------------
+            async fn future() -> i32 {
+                async {}.await;   // suspends and resumes
+                async {}.await;   // suspends and resumes
+                123
+            }
+            let result = future().await;
+            assert_eq!(result, 123);
+
+        Async block
+        --------------------------------------------------
+            let future = async {
+                async {}.await;   // suspends and resumes
+                async {}.await;   // suspends and resumes
+                123
+            };
+            let result = future.await;
+            assert_eq!(result, 123);
+
+        Async closure
+        --------------------------------------------------
+            let future = async || {
+                async {}.await;   // suspends and resumes
+                async {}.await;   // suspends and resumes
+                123
+            };
+            let result = future.await;
+            assert_eq!(result, 123);
+
+        Struct implementing Future
+        --------------------------------------------------
+            struct MyFuture {
+                value: i32,
+            }
+            impl Future for MyFuture {
+                type Output = i32;
+                fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<i32> {
+                    if self.value == 1 {
+                        Poll::Ready(self.value)
+                    } else {
+                        self.value += 1;
+                        cx.waker().wake_by_ref();
+                        Poll::Pending
+                    }
+                }
+            }
+            let future = MyFuture { value: 0 };
+            let result = future.await;
+            assert_eq!(result, 1);
+
+    Trait:
+    --------------------------------------------------
         enum Poll<T> {  // Result of the poll method: Ready or Pending
             Ready(T),
             Pending,
@@ -36,7 +134,7 @@ FUTURE TRAIT:
 
         - &mut self:
             - exclusive access to the future, no other executor can poll it at the same time
-            - mutable access, can change/update the state of the future
+            - mutable access, can change/update the state of the future (step and captured variables)
         - pin:
             - prevents the future from being moved in memory without unsafe.
             - only in the poll method you will use unsafe access, but in the rest of the code

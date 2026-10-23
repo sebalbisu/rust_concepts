@@ -36,74 +36,9 @@ fn index() {
     utf8_slicing::safe_slicing_with_get();
     utf8_slicing::char_iteration();
     utf8_slicing::invalid_slice_panics();
-
 }
 
 /*
-========================================================================
-SLICES: FLEXIBILITY: MULTIPLE SOURCES
-========================================================================
-
-
-    DEREF COERCION: 
-    --------------------------------------------
-        A reference of Array|Vec|String, can be used as an slice.
-
-        • &[T; N]  →  &[T]   (Deref on Array -> slice)
-        • &Vec<T>  →  &[T]   (Deref on Vec -> slice)
-        • &String  →  &str   (Deref on String -> slice)
-
-    COMPARISON: FLEXIBLE vs RESTRICTIVE PARAMETERS:
-    --------------------------------------------
-        It is better to use slices instead of owning types
-        Slices are flexible, because they can be created from multiple sources:
-
-        FLEXIBLE - Accepts multiple sources:
-
-            fn process_slice(data: &[i32]) {       // ← &[T] is flexible
-                println!("{:?}", data);
-            }
-
-            let arr = [1, 2, 3];
-            let vec = vec![1, 2, 3];
-
-            process_slice(&arr);        // ✓ Array → &[i32] (Deref coercion)
-            process_slice(&vec);        // ✓ Vec → &[i32]   (Deref coercion)
-            process_slice(&vec[1..3]);  // ✓ slice
-
-        RESTRICTIVE - Only one source:
-
-            fn process_vec(data: Vec<i32>) {       // ← Vec requires ownership
-                println!("{:?}", data);
-            }
-
-            process_vec(arr.to_vec());  // ✗ Must copy Array to Vec (inefficient!)
-            process_vec(vec);           // ✓ Only works with Vec
-
-    STRING CASE: &str vs &String:
-    --------------------------------------------
-        &str is a flexible type, because it can be created from multiple sources:
-
-        FLEXIBLE - Accepts String, &str, literals:
-
-            fn greet(name: &str) {                 // ← &str is flexible
-                println!("Hello, {}", name);
-            }
-
-            let s = String::from("Rust");
-            greet(&s);                  // ✓ String → &str (Deref coercion)
-            greet("Hello");             // ✓ Literal &str
-
-        RESTRICTIVE - Only &String:
-
-            fn greet(name: &String) {               // ← &String very restrictive
-                println!("Hello, {}", name);
-            }
-
-            greet(&s);                  // ✓ Works with &String
-            greet("Hello");             // ✗ ERROR: literal is &str, not &String
-        
-
 ========================================================================
 ARRAYS
 ========================================================================
@@ -125,18 +60,18 @@ ARRAYS
         ✓ No heap allocation
         ✓ Copy if T:Copy
 
-    WAYS TO CREATE ARRAYS:
+    CREATION:
     --------------------------------------------
         let arr1: [i32; 4] = [10, 20, 30, 40];  // explicit
 
         let arr2 = [1; 4];                      // initialize all with 1
-        
+
         let arr4: [i32; 4];                     // uninitialized
                                                 // unsafe to access (garbage values)
-        
+
         let arr3: [i32; 0] = [];                // empty array, 0 elements, 0 bytes,
                                                 // safe to access, nothing to read
-                                                // useful for generics [u8; N] 
+                                                // useful for generics [u8; N]
                                                 // where N can be 0
 */
 #[cfg(test)]
@@ -164,7 +99,7 @@ mod arrays {
 
         // Initialization with repeated value
         let zeros: [i32; 100] = [0; 100];
-        assert_eq!(zeros[100-1], 0);
+        assert_eq!(zeros[100 - 1], 0);
     }
 
     #[test]
@@ -523,7 +458,7 @@ MUTABLE SLICES
         │ is Copy (ptr + len)  │ ✓                │ ✗                        │
         └──────────────────────┴──────────────────┴──────────────────────────┘
 
-    WHY IS &mut [i32] EASY BUT &mut str IS HARD?:
+    WHY IS &mut str NOT COMMON?:
     --------------------------------------------
         FIXED-SIZE TYPES (i32, f64, etc.):
             • Each element occupies exactly N bytes
@@ -588,6 +523,56 @@ mod mutable_slices {
         // This works because 'H' and 'h' occupy the same byte
     }
 }
+
+/*
+========================================================================
+SLICES: FLEXIBILITY: MULTIPLE SOURCES
+========================================================================
+
+    DEREF COERCION (Deref() and DerefMut()):
+    --------------------------------------------
+        A reference of Array|Vec|String, can be used as an slice.
+        unifying the types, allowing to use the same function for multiple sources.
+
+        • &[T; N]  →  &[T]
+        • &Vec<T>  →  &[T]
+        • Box<[T]>  →  &[T]
+        • Struct (with Deref -> &[T]) →  &[T]
+        • &String  →  &str (&str is an slice of characters, valid utf-8 parts, not &[u8] slice)
+
+        Same for mutable references:
+
+        • &mut [T; N]  →  &mut [T]
+        • &mut Vec<T>  →  &mut [T]
+        • Box<mut [T]>  →  &mut [T]
+        • &mut String  →  &mut str (while respect the same length of the slice (utf-8 bytes))
+
+    FLEXIBLE vs RESTRICTIVE:
+    --------------------------------------------
+        It is better to use slices instead of owning types
+        Slices are flexible, because they can be created from multiple sources:
+
+        FLEXIBLE - Accepts multiple sources:
+
+            fn process_slice(data: &[i32]) {       // ← &[T] is flexible
+                println!("{:?}", data);
+            }
+
+            let arr = [1, 2, 3];
+            let vec = vec![1, 2, 3];
+
+            process_slice(&arr);        // ✓ Array → &[i32] (Deref coercion)
+            process_slice(&vec);        // ✓ Vec → &[i32]   (Deref coercion)
+            process_slice(&vec[1..3]);  // ✓ slice
+
+        RESTRICTIVE - Only one source:
+
+            fn process_vec(data: &Vec<i32>) {
+                println!("{:?}", data);
+            }
+
+            process_vec(&vec);           // ✓ Only works with Vec
+*/
 
 /*
 ========================================================================
@@ -905,3 +890,4 @@ mod utf8_slicing {
         // let _ = &s[6..7]; // PANIC! cuts inside emoji
     }
 }
+    

@@ -3,8 +3,8 @@ BYTE:
   Basic unit of memory (8 bits on modern systems)
 
 WORD:
-  Word: "Natural" size with which the CPU operates and moves data efficiently; 
-  matches the width of general purpose registers and the data bus. 
+  Word: "Natural" size with which the CPU operates and moves data efficiently;
+  matches the width of general purpose registers and the data bus.
   Pointers also have the size of a word.
   In 16-bit: 1 word = 2 bytes
   In 32-bit: 1 word = 4 bytes
@@ -30,7 +30,7 @@ HEAP:
   not scoped to the function or block they are declared in
 
 PADDING:
-  Bytes automatically added between variables or struct fields to satisfy 
+  Bytes automatically added between variables or struct fields to satisfy
   alignment rules and optimize access, padding is filled until filling the word.
 
 MEMORY ADDRESSES:
@@ -50,7 +50,7 @@ STACK LAYOUT - 64-BIT SYSTEM WITH DETAILED ALIGNMENT AND PADDING
 ALIGNMENT:
   Each data type must start at an address that is a multiple of its size,
   so the CPU can access it efficiently.
-  Padding (empty bytes) is added between variables/fields if necessary, 
+  Padding (empty bytes) is added between variables/fields if necessary,
   to satisfy this rule.
 
 ALIGNMENT RULE:
@@ -149,6 +149,7 @@ String:
   7  │ 0x7fff...680      │ 0    │ 0xFF           │ String.ptr
      │ 0x7fff...681      │ 1    │ 0x04           │ 4328766719
      │ 0x7fff...682      │ 2    │ 0x02           │ (little-endian)
+
      │ 0x7fff...683      │ 3    │ 0x01           │
      │ 0x7fff...684      │ 4    │ 0x00           │
      │ 0x7fff...685      │ 5    │ 0x00           │
@@ -213,187 +214,47 @@ ptr_next:
      │                   │      │                │
      │                   │      │ ─── ALIGNMENT 8 ──│ (reference occupies 8 bytes = 1 word)
 
+PEFORMANCE - STRUCT PADDING — REORDERING SAVES A WORD
+═════════════════════════════════════════════════════════════════════════════
+
+Each field starts at an offset multiple of its alignment.
+The struct size is rounded up to a multiple of its largest alignment,
+so the next element in an array stays aligned.
+
+A field is loaded by its offset. Padding bytes are not read.
+Reordering saves memory only when it removes a whole word (8 bytes).
+#[repr(C)] keeps this order. Without it, Rust may reorder fields.
+
+#[repr(C)]
 struct Person {
-    id: u32,
-    active: bool,
-    age: u32,
-    name_ptr: *const str,
+    active: bool, // offset 0,  align 1
+    id: u64,      // offset 8,  align 8
+    flag: bool,   // offset 16, align 1
 }
+// [bool 1][pad 7][u64 8][bool 1][pad 7] = 24 bytes = 3 words
 
-MEMORY LAYOUT - ORIGINAL ORDER (INEFFICIENT):
+┌──────┬──────────┬─────────────────┬──────┬──────────┐
+│act(1)│ pad (7)  │     id (8)      │flg(1)│ pad (7)  │
+└──────┴──────────┴─────────────────┴──────┴──────────┘
+0      1          8                16     17         24
 
- 13  │ 0x7fff...728      │ 0    │ 0x65           │ struct Person {
-     │ 0x7fff...729      │ 1    │ 0x00           │   id: u32 = 101
-     │ 0x7fff...730      │ 2    │ 0x00           │   (little-endian: 0x00000065)
-     │ 0x7fff...731      │ 3    │ 0x00           │
-     │ 0x7fff...732      │ 4    │ 0x01           │   active: bool = true
-     │ 0x7fff...733      │ 5    │ 0x00 (padding) │   [3 bytes padding]
-     │ 0x7fff...734      │ 6    │ 0x00 (padding) │
-     │ 0x7fff...735      │ 7    │ 0x00 (padding) │
-     │                   │      │                │
-     │                   │      │ ─ WASTE ─│ 3 bytes wasted
-
- 14  │ 0x7fff...736      │ 0    │ 0x1E           │   age: u32 = 30
-     │ 0x7fff...737      │ 1    │ 0x00           │   (little-endian: 0x0000001E)
-     │ 0x7fff...738      │ 2    │ 0x00           │
-     │ 0x7fff...739      │ 3    │ 0x00           │
-     │ 0x7fff...740      │ 4    │ 0x00 (padding) │   [4 bytes padding]
-     │ 0x7fff...741      │ 5    │ 0x00 (padding) │
-     │ 0x7fff...742      │ 6    │ 0x00 (padding) │
-     │ 0x7fff...743      │ 7    │ 0x00 (padding) │
-     │                   │      │                │
-     │                   │      │ ─ WASTE ─│ 4 bytes wasted ← WORSE!
-
- 15  │ 0x7fff...744      │ 0    │ 0x56           │   name_ptr: *const str
-     │ 0x7fff...745      │ 1    │ 0x06           │   (little-endian: 0x00007fff0656)
-     │ 0x7fff...746      │ 2    │ 0x7f           │
-     │ 0x7fff...747      │ 3    │ 0x00           │
-     │ 0x7fff...748      │ 4    │ 0x00           │
-     │ 0x7fff...749      │ 5    │ 0x00           │
-     │ 0x7fff...750      │ 6    │ 0x00           │
-     │ 0x7fff...751      │ 7    │ 0x00           │
-     │                   │      │                │
-     │                   │      │ ─── ALIGNMENT 8 ──│
-     │                   │      │                │ Total: 4+1+3+4+4+8 = 24 bytes
-     │                   │      │                │ WASTE: 3+4 = 7 bytes
-
- 16  │ 0x7fff...752      │ 0    │ 0x00 (padding) │ [final padding for next variable]
-     │ 0x7fff...753      │ 1    │ 0x00 (padding) │
-     │ 0x7fff...754      │ 2    │ 0x00 (padding) │
-     │ 0x7fff...755      │ 3    │ 0x00 (padding) │
-     │ 0x7fff...756      │ 4    │ 0x00 (padding) │
-     │ 0x7fff...757      │ 5    │ 0x00 (padding) │
-     │ 0x7fff...758      │ 6    │ 0x00 (padding) │
-     │ 0x7fff...759      │ 7    │ 0x00 (padding) │
-     │                   │      │                │
-     │                   │      ├────────────────┬ [AVAILABLE SPACE]
-     │                   │      │
-  ∞  │ 0x7fff...3040     │      │ ← Stack limit
-
-═════════════════════════════════════════════════════════════════════════════
-OPTIMIZED LAYOUT - FIELD REORDERING (EFFICIENT):
-
+#[repr(C)]
 struct PersonOptimized {
-    name_ptr: *const str,  // 8 bytes, alignment 8 → offset 0
-    id: u32,               // 4 bytes, alignment 4 → offset 8
-    age: u32,              // 4 bytes, alignment 4 → offset 12
-    active: bool,          // 1 byte, alignment 1 → offset 16
+    id: u64,      // offset 0, align 8
+    active: bool, // offset 8, align 1
+    flag: bool,   // offset 9, align 1
 }
+// [u64 8][bool 1][bool 1][pad 6] = 16 bytes = 2 words
 
-Word │ Address           │ Byte │ Content        │ Field
-─────┼───────────────────┼──────┼────────────────┼──────────────────────────
+┌─────────────────┬──────┬──────┬────────────┐
+│     id (8)      │act(1)│flg(1)│  pad (6)   │
+└─────────────────┴──────┴──────┴────────────┘
+0                8      9     10            16
 
- 13  │ 0x7fff...728      │ 0    │ 0x56           │ name_ptr: *const str
-     │ 0x7fff...729      │ 1    │ 0x06           │ (little-endian: 0x00007fff0656)
-     │ 0x7fff...730      │ 2    │ 0x7f           │
-     │ 0x7fff...731      │ 3    │ 0x00           │
-     │ 0x7fff...732      │ 4    │ 0x00           │
-     │ 0x7fff...733      │ 5    │ 0x00           │
-     │ 0x7fff...734      │ 6    │ 0x00           │
-     │ 0x7fff...735      │ 7    │ 0x00           │
-     │                   │      │                │
-     │                   │      │ ─ NO PADDING ─│ 0 bytes wasted ✓
+A u64 at a multiple of 8 is one load. One byte later, the CPU
+does two loads and merges them. Put the largest alignment first:
+pointer / u64, then u32, u16, and u8 / bool last.
 
- 14  │ 0x7fff...736      │ 0    │ 0x65           │ id: u32 = 101
-     │ 0x7fff...737      │ 1    │ 0x00           │ (little-endian: 0x00000065)
-     │ 0x7fff...738      │ 2    │ 0x00           │
-     │ 0x7fff...739      │ 3    │ 0x00           │
-     │ 0x7fff...740      │ 4    │ 0x1E           │ age: u32 = 30
-     │ 0x7fff...741      │ 5    │ 0x00           │ (little-endian: 0x0000001E)
-     │ 0x7fff...742      │ 6    │ 0x00           │
-     │ 0x7fff...743      │ 7    │ 0x00           │
-     │                   │      │                │
-     │                   │      │ ─ NO PADDING ─│ 0 bytes wasted ✓
-
- 15  │ 0x7fff...744      │ 0    │ 0x01           │ active: bool = true
-     │ 0x7fff...745      │ 1    │ 0x00 (padding) │ [7 bytes final padding]
-     │ 0x7fff...746      │ 2    │ 0x00 (padding) │
-     │ 0x7fff...747      │ 3    │ 0x00 (padding) │
-     │ 0x7fff...748      │ 4    │ 0x00 (padding) │
-     │ 0x7fff...749      │ 5    │ 0x00 (padding) │
-     │ 0x7fff...750      │ 6    │ 0x00 (padding) │
-     │ 0x7fff...751      │ 7    │ 0x00 (padding) │
-     │                   │      │                │
-     │                   │      │ ─ FINAL PADDING│ Total: 8+4+4+1+7 = 24 bytes
-     │                   │      │                │ WASTE: 7 bytes (at the end)
-
-
-
-═════════════════════════════════════════════════════════════════════════════
-VISUAL COMPARISON
-═════════════════════════════════════════════════════════════════════════════
-
-ORIGINAL ORDER (INEFFICIENT):
-┌─────────┬──────┬──────────┬─────────┬──────┬──────────┐
-│ id (4)  │act(1)│pad(3)    │age (4)  │pad(4)│ptr (8)   │
-│ u32     │bool  │ ××××     │ u32     │××××××│*const str│
-└─────────┴──────┴──────────┴─────────┴──────┴──────────┘
-0       4 5      8         12       16        24
-WASTE: 3 bytes + 4 bytes = 7 bytes (POORLY DISTRIBUTED)
-
-
-OPTIMIZED ORDER (EFFICIENT):
-┌─────────────────┬─────────┬─────────┬──────┬──────────┐
-│   ptr (8)       │ id (4)  │age (4)  │act(1)│pad (7)   │
-│*const str       │ u32     │ u32     │bool  │××××××××× │
-└─────────────────┴─────────┴─────────┴──────┴──────────┘
-0                8         12              16        24
-WASTE: 7 bytes at the end (BETTER DISTRIBUTED)
-
-✓ ADVANTAGE: Access to id, age, active without crossing padding
-✗ DISADVANTAGE: Padding only at the end (less important)
-
-GOLDEN RULE:
-  Order fields from LARGEST to SMALLEST alignment:
-  - Pointers (8 bytes) first
-  - u64 (8 bytes)
-  - u32 (4 bytes)
-  - u16 (2 bytes)
-  - u8, bool (1 byte) at the end
-
-═════════════════════════════════════════════════════════════════════════════
-
-WHY DOES ALIGNMENT EXIST?
-
-The CPU is more efficient when accessing aligned data:
-  - Address aligned to 8: can read/write 8 bytes in ONE operation
-  - Address NOT aligned: requires TWO operations + combination
-
-Example:
-  ✓ ALIGNED (u64 at address 648):
-    CPU reads address 648 → gets 8 bytes in 1 operation
-
-  ✗ NOT ALIGNED (u64 at address 649):
-    CPU reads address 649 → gets only part of the data (+8 bytes)
-    CPU reads address 657 → gets the rest (+8 bytes)
-    CPU combines both parts (slower)
-
-ADDITIONAL PADDING BETWEEN VARIABLES:
-  The compiler adds padding between variables so each one
-  starts at an address aligned according to its size.
-
-STRUCT LAYOUT:
-  struct Person {
-    id: u32,           // @ offset 0 (alignment 4)
-    age: u8,           // @ offset 4 (alignment 1)
-    active: bool,      // @ offset 5 (alignment 1)
-    name_ptr: *const str, // @ offset 8 (alignment 8) ← requires padding
-  }
-
-  MEMORY:
-  [id: 4 bytes] [padding: 3] [age: 1] [active: 1] [padding: 2] [name_ptr: 8]
-  = 4 + 3 + 1 + 1 + 2 + 8 = 19 bytes → rounded to 24 (multiple of 8)
-
-REORDERING FIELDS REDUCES PADDING:
-  struct PersonOptimized {
-    name_ptr: *const str,  // @ offset 0 (8 bytes)
-    id: u32,               // @ offset 8 (4 bytes)
-    age: u8,               // @ offset 12 (1 byte)
-    active: bool,          // @ offset 13 (1 byte)
-  }
-  = 8 + 4 + 1 + 1 = 14 bytes → rounded to 16 (better)
-
-═════════════════════════════════════════════════════════════════════════════
 */
 
 /*
@@ -717,20 +578,4 @@ USE Vec::new() WHEN:
     if condition { errors.push("error1"); }
     if other_condition { errors.push("error2"); }
 
-
-STATIC ARRAYS vs VEC
-═════════════════════════════════════════════════════════════════════════════
-
-[T; N]:                    Vec<T>:
-├─ FIXED size              ├─ VARIABLE size
-├─ Compiletime             ├─ Runtime
-├─ Stack                   ├─ Heap (metadata on stack)
-├─ Fast access             ├─ Access by pointer (slower)
-├─ Cannot grow             ├─ Can grow/shrink
-└─ Size part of type       └─ Size not part of type
-
-let arr: [u32; 5] = [1,2,3,4,5];  // 5 elements, that's ALL
-let mut vec: Vec<u32> = Vec::new(); // 0 elements, can grow
-
-═════════════════════════════════════════════════════════════════════════════
 */

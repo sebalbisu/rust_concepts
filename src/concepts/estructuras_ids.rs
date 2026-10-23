@@ -305,10 +305,7 @@ mod id_reference {
 
         println!("  Now in Cart:");
         if let Some(product) = repo.get(1) {
-            println!(
-                "    - {} = ${:.2} (updated!)",
-                product.name, product.price
-            );
+            println!("    - {} = ${:.2} (updated!)", product.name, product.price);
         }
 
         println!("  ✅ id_reference::id_reference");
@@ -588,10 +585,7 @@ mod arc_shared {
         handle.join().unwrap();
 
         // See change from main thread
-        println!(
-            "  [Main] Price seen: ${:.2}",
-            product.read().unwrap().price
-        );
+        println!("  [Main] Price seen: ${:.2}", product.read().unwrap().price);
         println!(
             "  [Cart] Price seen: ${:.2}",
             cart.items[0].product.read().unwrap().price
@@ -600,7 +594,9 @@ mod arc_shared {
         println!("  ✅ arc_shared::arc_shared");
     }
 }
-
+/*
+fsfjks fjskfjskfjksj fskjfks jfskjsd'dfdksdsfks dsfs
+*/
 /*
 ========================================================================
 LIFETIMES_REF: REFERENCES WITH LIFETIMES (&'a T)
@@ -653,7 +649,7 @@ WEAK_REFERENCES: WEAK REFERENCES (Weak<T>)
     "upgraded" to Rc/Arc.
 
     ✓ Advantages:
-        Caches: You can have a Weak in a cache. If no one else is using the object 
+        Caches: You can have a Weak in a cache. If no one else is using the object
         (the Arc died), the cache shouldn't keep it alive artificially.
 
         Circular Structures in Threads: If you have two services that need each other
@@ -672,9 +668,7 @@ mod weak_references {
 
     #[test]
     pub fn weak_references() {
-        let product = Rc::new(RefCell::new(
-            Product::new(1, "Laptop", 999.99)
-        ));
+        let product = Rc::new(RefCell::new(Product::new(1, "Laptop", 999.99)));
 
         // Create a weak reference
         let weak_product: Weak<RefCell<Product>> = Rc::downgrade(&product);
@@ -789,19 +783,19 @@ mod ecs_pattern {
 
     Deleting an item from hashmap:
 
-        When you do hashmap.remove(&id), the entry disappears. If you iterate the HashMap, 
-        that element simply isn't there. You don't have to deal with Option::None like 
+        When you do hashmap.remove(&id), the entry disappears. If you iterate the HashMap,
+        that element simply isn't there. You don't have to deal with Option::None like
         in Vec<Option<T>>.
 
         Internally, a HashMap is an array of "buckets". When you delete something:
 
-        The HashMap marks that space as "empty" or uses a "tombstone" (a mark that 
+        The HashMap marks that space as "empty" or uses a "tombstone" (a mark that
         says "something was here").
         The physical "hole" exists in RAM, but the HashMap manages it for you.
         The performance problem:
         Although the HashMap hides the hole, the data is still scattered. The CPU can't
         predict where the next element is because hashes are random. You jump from one
-        memory address to another (this is called Pointer Chasing), which empties 
+        memory address to another (this is called Pointer Chasing), which empties
         the CPU cache.
      */
     pub mod ecs_hashmap {
@@ -841,7 +835,7 @@ mod ecs_pattern {
         It's the fastest form for the CPU because data is stuck together.
 
         No Hashing:
-        No mathematical function needs to be calculated to find the data. If you want the 
+        No mathematical function needs to be calculated to find the data. If you want the
         price of entity 5, you go directly to prices[5].
 
         CPU Prefetching:
@@ -853,7 +847,7 @@ mod ecs_pattern {
          byte of cache is full of useful information.
 
         Deletion with Holes:
-        If you delete an entity, you can leave a None in its place. The CPU simply skips 
+        If you delete an entity, you can leave a None in its place. The CPU simply skips
         that space when iterating.
     */
 
@@ -921,37 +915,37 @@ mod ecs_pattern {
                 // also has holes
 
         Ideal for components that are added/removed frequently.
-        When you delete an item, you move the last one to the hole, keeping everything 
+        When you delete an item, you move the last one to the hole, keeping everything
         stuck together.
 
         Perfect Iteration:
-        The iter() method traverses self.dense. No Option, no if let Some, no jumps. 
+        The iter() method traverses self.dense. No Option, no if let Some, no jumps.
         The CPU can do SIMD (process several numbers at once).
 
         O(1) Deletion:
-        Whether you have 3 or 3 million elements, deletion always costs the same because 
+        Whether you have 3 or 3 million elements, deletion always costs the same because
         you only swap two positions and do a pop().
 
         Cache Locality:
-        With no holes, every time the CPU brings a cache line from RAM, 100% of it is 
+        With no holes, every time the CPU brings a cache line from RAM, 100% of it is
         useful data.
 
         "Weakness" of Sparse Set: memory consumption in the sparse array:
 
-            The cost is low: An isize (or u32) takes only 4 or 8 bytes. Having a sparse 
-            array of 1 million elements takes about 4MB or 8MB. For a modern PC, that's 
+            The cost is low: An isize (or u32) takes only 4 or 8 bytes. Having a sparse
+            array of 1 million elements takes about 4MB or 8MB. For a modern PC, that's
             insignificant compared to the speed you gain.
 
-            Speed vs Memory: You prefer spending 8MB of RAM to have instant O(1) access, 
+            Speed vs Memory: You prefer spending 8MB of RAM to have instant O(1) access,
             rather than using a HashMap which is slower and "dirties" the CPU cache.
 
-            IDs are usually contiguous: In most game engines or high-performance systems, 
-            IDs are recycled. If an entity dies, its ID is saved for the next one, 
+            IDs are usually contiguous: In most game engines or high-performance systems,
+            IDs are recycled. If an entity dies, its ID is saved for the next one,
             keeping numbers as low as possible.
 
         Solution to Weakness:
-            If your application handles very scattered IDs (e.g. 1 and 1,000,000), 
-            using pagination or sharding to divide the sparse into smaller blocks 
+            If your application handles very scattered IDs (e.g. 1 and 1,000,000),
+            using pagination or sharding to divide the sparse into smaller blocks
             can help reduce memory consumption.
 
      */
